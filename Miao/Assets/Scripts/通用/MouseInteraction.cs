@@ -1,7 +1,5 @@
 ﻿using UnityEngine;
-using UnityEngine.EventSystems;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine.UI;
 
 public class MouseInteraction : MonoBehaviour
@@ -14,6 +12,10 @@ public class MouseInteraction : MonoBehaviour
 
     [Header("Canvas 引用（用于坐标转换）")]
     public Canvas canvas;
+
+    [Header("滚轮缩放范围")]
+    public float minScale = 0.3f;
+    public float maxScale = 6f;
 
     // 拖拽状态
     private bool isDragging = false;
@@ -30,59 +32,65 @@ public class MouseInteraction : MonoBehaviour
     {
         Vector2 mousePos = Input.mousePosition;
 
-        // 1️⃣ 找到鼠标下的可交互图片
-        CheckCorrect currentPiece = null;
+        // 分离滚轮缩放和拖拽检测
+        CheckCorrect currentPieceForScroll = null; // 鼠标在图片上即可缩放
+        CheckCorrect currentPieceForDrag = null;   // 鼠标在 Slot 内才可拖拽
+
         foreach (var piece in allPieces)
         {
             if (!piece.isInteractable) continue;
 
             RectTransform rt = piece.GetComponent<RectTransform>();
-            if (RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos))
-            {
-                currentPiece = piece;
-                break;
-            }
+            RectTransform slotRect = piece.transform.parent as RectTransform;
+
+            // Overlay Canvas -> camera 参数传 null
+            bool mouseOnPiece = RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos, null);
+            bool mouseOnSlot = slotRect != null && RectTransformUtility.RectangleContainsScreenPoint(slotRect, mousePos, null);
+
+            if (mouseOnPiece)
+                currentPieceForScroll = piece;
+
+            if (mouseOnSlot)
+                currentPieceForDrag = piece;
         }
 
-        // 2️⃣ 滚轮缩放
-        if (currentPiece != null && !isDragging)
+        // 滚轮缩放
+        if (currentPieceForScroll != null && !isDragging)
         {
             float scroll = Input.mouseScrollDelta.y;
             if (Mathf.Abs(scroll) > 0.01f)
             {
-                RectTransform rt = currentPiece.GetComponent<RectTransform>();
+                RectTransform rt = currentPieceForScroll.GetComponent<RectTransform>();
                 float newScale = rt.localScale.x + scroll * zoomSpeed;
-                newScale = Mathf.Clamp(newScale, 0.3f, 3f);
+                newScale = Mathf.Clamp(newScale, minScale, maxScale);
                 rt.localScale = Vector3.one * newScale;
+                MapManager.Instance.IsPieceCorrect(currentPieceForScroll);
 
-                MapManager.Instance.CheckSingle(currentPiece);
             }
         }
 
-        // 3️⃣ 拖拽逻辑
-        if (Input.GetMouseButtonDown(0) && currentPiece != null)
+        // 拖拽逻辑
+        if (Input.GetMouseButtonDown(0) && currentPieceForDrag != null)
         {
             isDragging = true;
-            draggingPiece = currentPiece;
+            draggingPiece = currentPieceForDrag;
             draggingIndex = System.Array.IndexOf(allPieces, draggingPiece);
             originalPosition = draggingPiece.GetComponent<RectTransform>().anchoredPosition;
         }
 
         if (isDragging)
         {
-            // 跟随鼠标
             RectTransform rt = draggingPiece.GetComponent<RectTransform>();
             Vector2 localPoint;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvas.transform as RectTransform,
-                mousePos, canvas.worldCamera, out localPoint);
+                mousePos, null, out localPoint);
             rt.anchoredPosition = localPoint;
         }
 
         if (Input.GetMouseButtonUp(0) && isDragging)
         {
             isDragging = false;
-            // 检查是否放在其他可交互图片上
             bool swapped = false;
             for (int i = 0; i < allPieces.Length; i++)
             {
@@ -90,7 +98,7 @@ public class MouseInteraction : MonoBehaviour
                 if (!allPieces[i].isInteractable) continue;
 
                 RectTransform rt = allPieces[i].GetComponent<RectTransform>();
-                if (RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos))
+                if (RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos, null))
                 {
                     StartCoroutine(SwapPieces(draggingPiece, allPieces[i]));
                     swapped = true;
@@ -100,7 +108,6 @@ public class MouseInteraction : MonoBehaviour
 
             if (!swapped)
             {
-                // 回到原位置
                 StartCoroutine(MoveTo(draggingPiece, originalPosition, 0.15f));
             }
         }
@@ -134,7 +141,7 @@ public class MouseInteraction : MonoBehaviour
         MapManager.Instance.CheckSingle(b);
     }
 
-    // 回弹
+    // 回弹到指定位置
     IEnumerator MoveTo(CheckCorrect piece, Vector2 target, float duration)
     {
         RectTransform rt = piece.GetComponent<RectTransform>();
@@ -150,5 +157,13 @@ public class MouseInteraction : MonoBehaviour
 
         rt.anchoredPosition = target;
         MapManager.Instance.CheckSingle(piece);
+    }
+
+    // 重置拖拽状态接口
+    public void ResetDraggingState()
+    {
+        isDragging = false;
+        draggingPiece = null;
+        draggingIndex = -1;
     }
 }
