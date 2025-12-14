@@ -13,8 +13,8 @@ public class CheckCorrect : MonoBehaviour
 
     private RectTransform rt;
 
-    // 正确的缩放大小
-    private const float correctScale = 4f;
+    [Header("正确的缩放大小")]
+    public float correctScale = 4f;
 
     void Awake()
     {
@@ -29,7 +29,5 @@ public class CheckCorrect : MonoBehaviour
     {
         float s = rt.localScale.x;
         return Mathf.Abs(s - correctScale) <= tolerance;
-        Debug.Log($"{name} scale = {rt.localScale.x}");
-
     }
 }
