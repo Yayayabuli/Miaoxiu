@@ -4,6 +4,9 @@ using System.Collections.Generic;
 
 public class MapManager : MonoBehaviour
 {
+    [Header("这关能拖拽吗")]
+    public bool canDrag = false;
+
     [Header("关卡大小（2/3/4）")]
     public int gridSize = 3;
 
@@ -50,14 +53,11 @@ public class MapManager : MonoBehaviour
     /// <summary>
     /// 某张图片完成一次有效交互后调用，只检查那张
     /// </summary>
-    public void CheckSingle(CheckCorrect checker)
+    public bool CheckSingle(CheckCorrect checker)
     {
-        bool ok = checker.CheckNow();
-        if (!ok)
-        {
-            uiManager.ShowPartialError();
-        }
+        return checker.CheckNow();
     }
+
 
     public bool IsPieceCorrect(CheckCorrect checker)
     {
@@ -69,19 +69,35 @@ public class MapManager : MonoBehaviour
     /// </summary>
     public void CheckAll()
     {
+        bool hasError = false;
+
         foreach (var c in checkScripts)
         {
-            if (c.isInteractable)
+            if (!c.isInteractable)
+                continue;
+
+            if (!c.CheckNow())
             {
-                if (!c.CheckNow())
-                {
-                    uiManager.ShowUnfinished();
-                    return;
-                }
+                hasError = true;
+                break;
             }
         }
 
-        uiManager.ShowSuccess();
+        if (!hasError)
+        {
+            uiManager.ShowSuccess();
+            return;
+        }
+
+        // ❗关键：根据关卡决定失败 UI
+        if (canDrag)   // 第三关
+        {
+            uiManager.ShowPartialError();
+        }
+        else           // 第一 / 第二关
+        {
+            uiManager.ShowUnfinished();
+        }
     }
 
     // ✅ 新增接口：获取拼图原始位置

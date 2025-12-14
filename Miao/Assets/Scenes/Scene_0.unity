@@ -1157,7 +1157,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   initialScale: 8
-  tolerance: 1
+  tolerance: 100
   isInteractable: 1
 --- !u!114 &719038239
 MonoBehaviour:
@@ -1384,7 +1384,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   initialScale: 4
-  tolerance: 0.1
+  tolerance: 100
   isInteractable: 0
 --- !u!114 &755583373
 MonoBehaviour:
@@ -1475,7 +1475,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   initialScale: 1
-  tolerance: 1
+  tolerance: 100
   isInteractable: 1
 --- !u!114 &778814074
 MonoBehaviour:
@@ -1894,6 +1894,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a21a51b7ca6f724a8cf3ac827bdb548, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  canDrag: 0
   gridSize: 2
   slotsParent: {fileID: 795507152}
   puzzleDatas:
@@ -2155,7 +2156,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 0, b: 0, a: 1}
+  m_Color: {r: 1, g: 0.9580044, b: 0, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -2686,7 +2687,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   initialScale: 2
-  tolerance: 1
+  tolerance: 100
   isInteractable: 1
 --- !u!114 &1503722242
 MonoBehaviour:

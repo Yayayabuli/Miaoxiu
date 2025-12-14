@@ -70,6 +70,9 @@ public class MouseInteraction : MonoBehaviour
         }
 
         // 拖拽逻辑
+        if (!MapManager.Instance.canDrag)
+            return;
+
         if (Input.GetMouseButtonDown(0) && currentPieceForDrag != null)
         {
             isDragging = true;
@@ -100,7 +103,12 @@ public class MouseInteraction : MonoBehaviour
                 RectTransform rt = allPieces[i].GetComponent<RectTransform>();
                 if (RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos, null))
                 {
-                    StartCoroutine(SwapPieces(draggingPiece, allPieces[i]));
+                    if (CanSwap(draggingPiece, allPieces[i]))
+                    {
+                        StartCoroutine(SwapBySlot(draggingPiece, allPieces[i]));
+                        swapped = true;
+                    }
+
                     swapped = true;
                     break;
                 }
@@ -141,6 +149,33 @@ public class MouseInteraction : MonoBehaviour
         MapManager.Instance.CheckSingle(b);
     }
 
+    IEnumerator SwapBySlot(CheckCorrect a, CheckCorrect b)
+    {
+        Transform slotA = a.transform.parent;
+        Transform slotB = b.transform.parent;
+
+        // 临时占位
+        Transform temp = new GameObject("TempSlot").transform;
+        temp.SetParent(slotA.parent);
+
+        // 交换父物体
+        a.transform.SetParent(temp);
+        b.transform.SetParent(slotA);
+        a.transform.SetParent(slotB);
+
+        Destroy(temp.gameObject);
+
+        // 强制归中，防止错位
+        a.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
+        b.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
+
+        yield return null;
+
+        MapManager.Instance.IsPieceCorrect(a);
+        MapManager.Instance.IsPieceCorrect(b);
+    }
+
+
     // 回弹到指定位置
     IEnumerator MoveTo(CheckCorrect piece, Vector2 target, float duration)
     {
@@ -166,4 +201,17 @@ public class MouseInteraction : MonoBehaviour
         draggingPiece = null;
         draggingIndex = -1;
     }
+    bool CanSwap(CheckCorrect a, CheckCorrect b)
+    {
+        // 不是第三关，禁止交换
+        if (MapManager.Instance.gridSize != 3)
+            return false;
+
+        int indexA = System.Array.IndexOf(allPieces, a);
+        int indexB = System.Array.IndexOf(allPieces, b);
+
+        return MapManager.Instance.interactIndexes.Contains(indexA)
+            && MapManager.Instance.interactIndexes.Contains(indexB);
+    }
+
 }
