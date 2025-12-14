@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
+using Unity.VisualScripting;
+using System.Linq;
 
 public class UI_Manager : MonoBehaviour
 {
@@ -18,35 +20,36 @@ public class UI_Manager : MonoBehaviour
     /// </summary>
     public void OnCheckCompletion()
     {
-        bool allCorrect = true;
+        bool hasError = false;
 
-        foreach (var piece in mouseInteraction.allPieces)
+        var allChecks = MapManager.Instance.GetAllCheckScripts();
+
+        Debug.Log("Check count = " + allChecks.Length);
+
+        foreach (var c in allChecks)
         {
-            if (!piece.isInteractable) continue;
+            // 第三关：只检查可交互拼图
+            if (MapManager.Instance.canDrag && !c.isInteractable)
+                continue;
 
-            // 检查缩放
-            if (!piece.CheckNow())
+            if (!c.CheckNow())
             {
-                allCorrect = false;
-                break;
-            }
-
-            // 检查位置是否接近初始位置
-            // 这里假设 MapManager 里有 CheckPosition 函数，也可以自定义
-            if (MapManager.Instance != null && !MapManager.Instance.CheckPosition(piece))
-            {
-                allCorrect = false;
+                hasError = true;
                 break;
             }
         }
 
-        if (allCorrect)
+        if (!hasError)
         {
             ShowSuccess();
         }
+        else if (MapManager.Instance.canDrag)
+        {
+            ShowPartialError();
+        }
         else
         {
-            ShowPartialError(); // 或 ShowUnfinished，看你需求
+            ShowUnfinished();
         }
     }
 

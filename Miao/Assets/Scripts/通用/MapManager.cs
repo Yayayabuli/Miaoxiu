@@ -58,11 +58,16 @@ public class MapManager : MonoBehaviour
         return checker.CheckNow();
     }
 
-
     public bool IsPieceCorrect(CheckCorrect checker)
     {
         return checker.CheckNow();
     }
+
+    public CheckCorrect[] GetAllCheckScripts()
+    {
+        return FindObjectsOfType<CheckCorrect>(true);
+    }
+
 
     /// <summary>
     /// UI按钮调用，检查所有可交互图片
@@ -83,14 +88,12 @@ public class MapManager : MonoBehaviour
             }
         }
 
-        if (!hasError)
+        if (hasError==false)
         {
             uiManager.ShowSuccess();
             return;
         }
-
-        // ❗关键：根据关卡决定失败 UI
-        if (canDrag)   // 第三关
+        else if (canDrag)   // 第三关
         {
             uiManager.ShowPartialError();
         }

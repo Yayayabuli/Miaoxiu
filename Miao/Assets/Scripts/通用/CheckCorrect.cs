@@ -6,7 +6,7 @@ public class CheckCorrect : MonoBehaviour
     public float initialScale = 0.8f; // 每张图片不同
 
     [Header("容错范围 ±")]
-    public float tolerance = 0.1f;
+    public float tolerance = 2f;
 
     [Header("是否为可交互图片")]
     public bool isInteractable = true;
@@ -29,5 +29,7 @@ public class CheckCorrect : MonoBehaviour
     {
         float s = rt.localScale.x;
         return Mathf.Abs(s - correctScale) <= tolerance;
+        Debug.Log($"{name} scale = {rt.localScale.x}");
+
     }
 }

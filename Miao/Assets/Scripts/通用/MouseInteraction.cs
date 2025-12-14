@@ -21,6 +21,8 @@ public class MouseInteraction : MonoBehaviour
     private bool isDragging = false;
     private CheckCorrect draggingPiece;
     private Vector3 originalPosition;
+    private Vector2 dragOffset; // 鼠标到图片中心的偏移
+    private Transform originalParent;
     private int draggingIndex = -1;
 
     void Update()
@@ -79,6 +81,18 @@ public class MouseInteraction : MonoBehaviour
             draggingPiece = currentPieceForDrag;
             draggingIndex = System.Array.IndexOf(allPieces, draggingPiece);
             originalPosition = draggingPiece.GetComponent<RectTransform>().anchoredPosition;
+            originalParent = draggingPiece.transform.parent;
+
+            // 计算鼠标与图片中心的偏移
+            RectTransform rt = draggingPiece.GetComponent<RectTransform>();
+            Vector2 localMousePos;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvas.transform as RectTransform,
+                Input.mousePosition, null, out localMousePos);
+            dragOffset = rt.anchoredPosition - localMousePos;
+
+            // 拖拽时提升到 Canvas 根节点，避免被 Mask 裁剪
+            draggingPiece.transform.SetParent(canvas.transform, true);
         }
 
         if (isDragging)
@@ -87,8 +101,8 @@ public class MouseInteraction : MonoBehaviour
             Vector2 localPoint;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvas.transform as RectTransform,
-                mousePos, null, out localPoint);
-            rt.anchoredPosition = localPoint;
+                Input.mousePosition, null, out localPoint);
+            rt.anchoredPosition = localPoint+dragOffset;
         }
 
         if (Input.GetMouseButtonUp(0) && isDragging)
@@ -105,7 +119,7 @@ public class MouseInteraction : MonoBehaviour
                 {
                     if (CanSwap(draggingPiece, allPieces[i]))
                     {
-                        StartCoroutine(SwapBySlot(draggingPiece, allPieces[i]));
+                        StartCoroutine(SwapBySlotAnimated(draggingPiece, allPieces[i]));
                         swapped = true;
                     }
 
@@ -121,60 +135,43 @@ public class MouseInteraction : MonoBehaviour
         }
     }
 
-    // 动画交换两张图片
-    IEnumerator SwapPieces(CheckCorrect a, CheckCorrect b)
+    IEnumerator SwapBySlotAnimated(CheckCorrect a, CheckCorrect b)
     {
         RectTransform rtA = a.GetComponent<RectTransform>();
         RectTransform rtB = b.GetComponent<RectTransform>();
 
-        Vector2 posA = rtA.anchoredPosition;
-        Vector2 posB = rtB.anchoredPosition;
+        Transform slotA = a.transform.parent;
+        Transform slotB = b.transform.parent;
 
-        float t = 0;
+        Vector2 startA = rtA.anchoredPosition;
+        Vector2 startB = rtB.anchoredPosition;
+
+        // 交换父物体
+        a.transform.SetParent(slotB, false);
+        b.transform.SetParent(slotA, false);
+
+        // 目标位置
+        Vector2 endA = Vector2.zero;
+        Vector2 endB = Vector2.zero;
+
+        float t = 0f;
         float duration = 0.15f;
 
         while (t < duration)
         {
             t += Time.deltaTime;
             float k = t / duration;
-            rtA.anchoredPosition = Vector2.Lerp(posA, posB, k);
-            rtB.anchoredPosition = Vector2.Lerp(posB, posA, k);
+            rtA.anchoredPosition = Vector2.Lerp(startA, endA, k);
+            rtB.anchoredPosition = Vector2.Lerp(startB, endB, k);
             yield return null;
         }
 
-        rtA.anchoredPosition = posB;
-        rtB.anchoredPosition = posA;
-
-        MapManager.Instance.CheckSingle(a);
-        MapManager.Instance.CheckSingle(b);
-    }
-
-    IEnumerator SwapBySlot(CheckCorrect a, CheckCorrect b)
-    {
-        Transform slotA = a.transform.parent;
-        Transform slotB = b.transform.parent;
-
-        // 临时占位
-        Transform temp = new GameObject("TempSlot").transform;
-        temp.SetParent(slotA.parent);
-
-        // 交换父物体
-        a.transform.SetParent(temp);
-        b.transform.SetParent(slotA);
-        a.transform.SetParent(slotB);
-
-        Destroy(temp.gameObject);
-
-        // 强制归中，防止错位
-        a.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
-        b.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
-
-        yield return null;
+        rtA.anchoredPosition = endA;
+        rtB.anchoredPosition = endB;
 
         MapManager.Instance.IsPieceCorrect(a);
         MapManager.Instance.IsPieceCorrect(b);
     }
-
 
     // 回弹到指定位置
     IEnumerator MoveTo(CheckCorrect piece, Vector2 target, float duration)
@@ -204,7 +201,7 @@ public class MouseInteraction : MonoBehaviour
     bool CanSwap(CheckCorrect a, CheckCorrect b)
     {
         // 不是第三关，禁止交换
-        if (MapManager.Instance.gridSize != 3)
+        if (!MapManager.Instance.canDrag)
             return false;
 
         int indexA = System.Array.IndexOf(allPieces, a);
