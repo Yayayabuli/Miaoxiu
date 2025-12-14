@@ -935,7 +935,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a21a51b7ca6f724a8cf3ac827bdb548, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  canDrag: 0
+  canDrag: 1
   gridSize: 4
   slotsParent: {fileID: 1965415468}
   puzzleDatas:
@@ -990,7 +990,7 @@ MonoBehaviour:
   - {fileID: 569564736}
   - {fileID: 771521531}
   uiManager: {fileID: 1301429151}
-  interactIndexes: 000000000100000003000000
+  interactIndexes: 070000000c000000
   positionTolerance: 10
 --- !u!1 &367726053
 GameObject:
@@ -1978,7 +1978,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.7118191, g: 0.8113208, b: 0.77684057, a: 1}
+  m_Color: {r: 0.9907706, g: 1, b: 0.58176094, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -2322,7 +2322,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.7118191, g: 0.8113208, b: 0.77684057, a: 1}
+  m_Color: {r: 0.9907706, g: 1, b: 0.58176094, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -2866,7 +2866,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 0a61bd4a92c26764facc72549014584d, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 99b2f2c46eb398f4fbd6525c744703f1, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -4719,7 +4719,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 99b2f2c46eb398f4fbd6525c744703f1, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 0a61bd4a92c26764facc72549014584d, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

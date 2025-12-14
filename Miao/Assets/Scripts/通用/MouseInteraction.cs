@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System.Collections;
-using UnityEngine.UI;
 
 public class MouseInteraction : MonoBehaviour
 {
@@ -10,7 +9,7 @@ public class MouseInteraction : MonoBehaviour
     [Header("操作的拼图图片数组")]
     public CheckCorrect[] allPieces;
 
-    [Header("Canvas 引用（用于坐标转换）")]
+    [Header("Canvas 引用")]
     public Canvas canvas;
 
     [Header("滚轮缩放范围")]
@@ -20,9 +19,9 @@ public class MouseInteraction : MonoBehaviour
     // 拖拽状态
     private bool isDragging = false;
     private CheckCorrect draggingPiece;
-    private Vector3 originalPosition;
-    private Vector2 dragOffset; // 鼠标到图片中心的偏移
-    private Transform originalParent;
+    private Vector3 offsetToMouse;       // 鼠标与图片中心的偏移
+    private Transform originalParent;    // 拖拽前的父物体
+    private Vector2 originalAnchoredPos; // 拖拽前在父物体中的位置
     private int draggingIndex = -1;
 
     void Update()
@@ -34,26 +33,18 @@ public class MouseInteraction : MonoBehaviour
     {
         Vector2 mousePos = Input.mousePosition;
 
-        // 分离滚轮缩放和拖拽检测
-        CheckCorrect currentPieceForScroll = null; // 鼠标在图片上即可缩放
-        CheckCorrect currentPieceForDrag = null;   // 鼠标在 Slot 内才可拖拽
-
+        // 找到鼠标下的可交互图片（用于滚轮缩放）
+        CheckCorrect currentPieceForScroll = null;
         foreach (var piece in allPieces)
         {
             if (!piece.isInteractable) continue;
 
             RectTransform rt = piece.GetComponent<RectTransform>();
-            RectTransform slotRect = piece.transform.parent as RectTransform;
-
-            // Overlay Canvas -> camera 参数传 null
-            bool mouseOnPiece = RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos, null);
-            bool mouseOnSlot = slotRect != null && RectTransformUtility.RectangleContainsScreenPoint(slotRect, mousePos, null);
-
-            if (mouseOnPiece)
+            if (RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos, null))
+            {
                 currentPieceForScroll = piece;
-
-            if (mouseOnSlot)
-                currentPieceForDrag = piece;
+                break;
+            }
         }
 
         // 滚轮缩放
@@ -66,63 +57,75 @@ public class MouseInteraction : MonoBehaviour
                 float newScale = rt.localScale.x + scroll * zoomSpeed;
                 newScale = Mathf.Clamp(newScale, minScale, maxScale);
                 rt.localScale = Vector3.one * newScale;
-                MapManager.Instance.IsPieceCorrect(currentPieceForScroll);
 
+                // 默默检查正确性
+                MapManager.Instance.IsPieceCorrect(currentPieceForScroll);
             }
         }
 
         // 拖拽逻辑
-        if (!MapManager.Instance.canDrag)
-            return;
-
-        if (Input.GetMouseButtonDown(0) && currentPieceForDrag != null)
+        if (Input.GetMouseButtonDown(0))
         {
-            isDragging = true;
-            draggingPiece = currentPieceForDrag;
-            draggingIndex = System.Array.IndexOf(allPieces, draggingPiece);
-            originalPosition = draggingPiece.GetComponent<RectTransform>().anchoredPosition;
-            originalParent = draggingPiece.transform.parent;
+            // 只允许第三关可拖拽索引
+            if (!MapManager.Instance.canDrag) return;
 
-            // 计算鼠标与图片中心的偏移
-            RectTransform rt = draggingPiece.GetComponent<RectTransform>();
-            Vector2 localMousePos;
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvas.transform as RectTransform,
-                Input.mousePosition, null, out localMousePos);
-            dragOffset = rt.anchoredPosition - localMousePos;
+            for (int i = 0; i < allPieces.Length; i++)
+            {
+                var piece = allPieces[i];
+                if (!piece.isInteractable || !MapManager.Instance.interactIndexes.Contains(i)) continue;
 
-            // 拖拽时提升到 Canvas 根节点，避免被 Mask 裁剪
-            draggingPiece.transform.SetParent(canvas.transform, true);
+                RectTransform rt = piece.GetComponent<RectTransform>();
+                if (RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos, null))
+                {
+                    isDragging = true;
+                    draggingPiece = piece;
+                    draggingIndex = i;
+
+                    originalParent = piece.transform.parent;
+                    originalAnchoredPos = piece.GetComponent<RectTransform>().anchoredPosition;
+
+                    // 计算鼠标与图片中心偏移
+                    Vector2 localMousePos;
+                    RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                        rt, mousePos, null, out localMousePos);
+                    offsetToMouse = rt.localPosition - (Vector3)localMousePos;
+
+                    // 将图片放到 Canvas 顶层（保持视觉在最上层，不脱离 slot 只改变 siblingIndex）
+                    piece.transform.SetAsLastSibling();
+
+                    break;
+                }
+            }
         }
 
-        if (isDragging)
+        if (isDragging && draggingPiece != null)
         {
+            // 跟随鼠标，中心对齐
             RectTransform rt = draggingPiece.GetComponent<RectTransform>();
             Vector2 localPoint;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvas.transform as RectTransform,
-                Input.mousePosition, null, out localPoint);
-            rt.anchoredPosition = localPoint+dragOffset;
+                canvas.transform as RectTransform, mousePos, null, out localPoint);
+            rt.position = canvas.transform.TransformPoint(localPoint) + offsetToMouse;
         }
 
         if (Input.GetMouseButtonUp(0) && isDragging)
         {
             isDragging = false;
+
             bool swapped = false;
+
             for (int i = 0; i < allPieces.Length; i++)
             {
                 if (i == draggingIndex) continue;
-                if (!allPieces[i].isInteractable) continue;
+                var piece = allPieces[i];
 
-                RectTransform rt = allPieces[i].GetComponent<RectTransform>();
+                if (!piece.isInteractable || !MapManager.Instance.interactIndexes.Contains(i)) continue;
+
+                RectTransform rt = piece.GetComponent<RectTransform>();
                 if (RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos, null))
                 {
-                    if (CanSwap(draggingPiece, allPieces[i]))
-                    {
-                        StartCoroutine(SwapBySlotAnimated(draggingPiece, allPieces[i]));
-                        swapped = true;
-                    }
-
+                    // 交换 slot 下的图片
+                    StartCoroutine(SwapPieces(draggingPiece, piece));
                     swapped = true;
                     break;
                 }
@@ -130,85 +133,64 @@ public class MouseInteraction : MonoBehaviour
 
             if (!swapped)
             {
-                StartCoroutine(MoveTo(draggingPiece, originalPosition, 0.15f));
+                // 回到原 slot
+                StartCoroutine(MoveToSlot(draggingPiece, originalParent, originalAnchoredPos));
             }
+
+            draggingPiece = null;
+            draggingIndex = -1;
         }
     }
 
-    IEnumerator SwapBySlotAnimated(CheckCorrect a, CheckCorrect b)
+    IEnumerator SwapPieces(CheckCorrect a, CheckCorrect b)
     {
-        RectTransform rtA = a.GetComponent<RectTransform>();
-        RectTransform rtB = b.GetComponent<RectTransform>();
-
         Transform slotA = a.transform.parent;
         Transform slotB = b.transform.parent;
 
-        Vector2 startA = rtA.anchoredPosition;
-        Vector2 startB = rtB.anchoredPosition;
+        // 暂存位置
+        Vector2 posA = a.GetComponent<RectTransform>().anchoredPosition;
+        Vector2 posB = b.GetComponent<RectTransform>().anchoredPosition;
 
         // 交换父物体
         a.transform.SetParent(slotB, false);
         b.transform.SetParent(slotA, false);
 
-        // 目标位置
-        Vector2 endA = Vector2.zero;
-        Vector2 endB = Vector2.zero;
+        // 重置锚点位置
+        a.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
+        b.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
 
-        float t = 0f;
+        // 可选：简单动画
+        float t = 0;
         float duration = 0.15f;
-
+        RectTransform rtA = a.GetComponent<RectTransform>();
+        RectTransform rtB = b.GetComponent<RectTransform>();
         while (t < duration)
         {
             t += Time.deltaTime;
             float k = t / duration;
-            rtA.anchoredPosition = Vector2.Lerp(startA, endA, k);
-            rtB.anchoredPosition = Vector2.Lerp(startB, endB, k);
+            rtA.anchoredPosition = Vector2.Lerp(Vector2.zero, Vector2.zero, k); // 本质位置已经在 slot 下
+            rtB.anchoredPosition = Vector2.Lerp(Vector2.zero, Vector2.zero, k);
             yield return null;
         }
 
-        rtA.anchoredPosition = endA;
-        rtB.anchoredPosition = endB;
-
+        // 检查正确性
         MapManager.Instance.IsPieceCorrect(a);
         MapManager.Instance.IsPieceCorrect(b);
     }
 
-    // 回弹到指定位置
-    IEnumerator MoveTo(CheckCorrect piece, Vector2 target, float duration)
+    IEnumerator MoveToSlot(CheckCorrect piece, Transform slot, Vector2 anchoredPos)
     {
-        RectTransform rt = piece.GetComponent<RectTransform>();
-        Vector2 start = rt.anchoredPosition;
-        float t = 0;
+        piece.transform.SetParent(slot, false);
+        piece.GetComponent<RectTransform>().anchoredPosition = anchoredPos;
+        yield return null;
 
-        while (t < duration)
-        {
-            t += Time.deltaTime;
-            rt.anchoredPosition = Vector2.Lerp(start, target, t / duration);
-            yield return null;
-        }
-
-        rt.anchoredPosition = target;
-        MapManager.Instance.CheckSingle(piece);
+        MapManager.Instance.IsPieceCorrect(piece);
     }
 
-    // 重置拖拽状态接口
     public void ResetDraggingState()
     {
         isDragging = false;
         draggingPiece = null;
         draggingIndex = -1;
     }
-    bool CanSwap(CheckCorrect a, CheckCorrect b)
-    {
-        // 不是第三关，禁止交换
-        if (!MapManager.Instance.canDrag)
-            return false;
-
-        int indexA = System.Array.IndexOf(allPieces, a);
-        int indexB = System.Array.IndexOf(allPieces, b);
-
-        return MapManager.Instance.interactIndexes.Contains(indexA)
-            && MapManager.Instance.interactIndexes.Contains(indexB);
-    }
-
 }
