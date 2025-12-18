@@ -1,6 +1,7 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
-public class ClickImageTrigger : MonoBehaviour
+public class ClickImageTrigger : MonoBehaviour, IPointerClickHandler
 {
     public DialogueManager dialogueManager;
 
@@ -12,17 +13,25 @@ public class ClickImageTrigger : MonoBehaviour
 
     private bool hasTriggered = false;
 
-    private void OnMouseDown()
+    public void OnPointerClick(PointerEventData eventData)
     {
         if (hasTriggered) return;
 
         if (dialogueManager == null)
         {
-            /*Debug.LogError("DialogueManager 没有拖入！");*/
+            Debug.LogError("DialogueManager 没有拖入！");
+            return;
+        }
+
+        if (dialogueLines == null || dialogueLines.Length == 0)
+        {
+            Debug.LogError("对话内容为空，无法触发对话！");
             return;
         }
 
         dialogueManager.StartDialogue(characterName, portrait, dialogueLines, voiceClips);
         hasTriggered = true;
+
+        Debug.Log("UI 点击成功，对话已触发！");
     }
 }

@@ -4,66 +4,46 @@ using System.Collections;
 
 public class DialogueManager : MonoBehaviour
 {
-    [Header("UI引用")]
+    [Header("UI 引用")]
     public GameObject dialoguePanel;
-    public GameObject namePanel;
-    public Text nameText;
     public Text dialogueText;
-    public Image portraitImage;
-    
 
-    /*[Header("语音")]
-    public AudioSource audioSource;*/
+    [Header("语音")]
+    public AudioSource audioSource;
 
     [Header("逐字显示速度")]
     public float typeSpeed = 0.05f;
 
     private string[] lines;
-    private int index;
-    private bool isTyping;
-    private bool dialogueActive;
+    private AudioClip[] voices;
+    private int index = -1;
 
-    public void StartDialogue(string characterName, Sprite portrait, string[] dialogueLines, AudioClip[] voiceClips)
+    private bool isTyping = false;
+    private bool dialogueActive = false;
+
+    public void StartDialogue(
+        string characterName,
+        Sprite portrait,
+        string[] dialogueLines,
+        AudioClip[] voiceClips
+    )
     {
         dialogueActive = true;
         dialoguePanel.SetActive(true);
-        namePanel.SetActive(true);
-
-        nameText.text = characterName;
-        portraitImage.sprite = portrait;
 
         lines = dialogueLines;
-        index = 0;
+        voices = voiceClips;
 
-        StopAllCoroutines();
-        StartCoroutine(TypeLine(voiceClips));
-    }
-
-    IEnumerator TypeLine(AudioClip[] voices)
-    {
-        isTyping = true;
+        index = -1;
         dialogueText.text = "";
 
-        string currentLine = lines[index];
-        /*
-        if (voices != null && index < voices.Length && voices[index] != null)
-        {
-            audioSource.clip = voices[index];
-            audioSource.Play();
-        }
-        */
+        audioSource.Stop();
+        StopAllCoroutines();
 
-        for (int i = 0; i < currentLine.Length; i++)
-        {
-            dialogueText.text += currentLine[i];
-            
-            yield return new WaitForSecondsRealtime(typeSpeed);
-        }
-
-        isTyping = false;
+        // ✅ 关键：立刻播放第一句
+        NextLine();
     }
 
-  
     void Update()
     {
         if (!dialogueActive) return;
@@ -72,7 +52,10 @@ public class DialogueManager : MonoBehaviour
         {
             if (isTyping)
             {
-                return;
+                // 点击补全文字（语音不中断）
+                StopAllCoroutines();
+                dialogueText.text = lines[index];
+                isTyping = false;
             }
             else
             {
@@ -84,10 +67,12 @@ public class DialogueManager : MonoBehaviour
     void NextLine()
     {
         index++;
+        Debug.Log("NextLine index = " + index);
 
         if (index < lines.Length)
         {
-            StartCoroutine(TypeLine(null));
+            StopAllCoroutines();
+            StartCoroutine(TypeLine());
         }
         else
         {
@@ -95,11 +80,38 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
+    IEnumerator TypeLine()
+    {
+        Debug.Log("voices is null? " + (voices == null));
+        Debug.Log("voices length = " + (voices == null ? -1 : voices.Length));
+
+        isTyping = true;
+        dialogueText.text = "";
+
+        // ▶ 播放当前句语音
+        if (voices != null && index < voices.Length && voices[index] != null)
+        {
+            audioSource.clip = voices[index];
+            audioSource.Play();
+        }
+
+        string currentLine = lines[index];
+
+        foreach (char c in currentLine)
+        {
+            dialogueText.text += c;
+            yield return new WaitForSecondsRealtime(typeSpeed);
+        }
+
+        isTyping = false;
+    }
+
     void EndDialogue()
     {
         dialogueActive = false;
         dialoguePanel.SetActive(false);
-        namePanel.SetActive(false);
-        /*audioSource.Stop();*/
+
+        audioSource.Stop();
+        dialogueText.text = "";
     }
 }
