@@ -13,6 +13,9 @@ public class UI_Manager : MonoBehaviour
 
     [Header("引用")]
     public MouseInteraction mouseInteraction;
+    
+    [Header("第三关成功反馈")]
+    public Level3SuccessDialogue level3SuccessDialogue;
 
     /// <summary>
     /// 1️⃣ 检查完成情况按钮点击
@@ -97,7 +100,13 @@ public class UI_Manager : MonoBehaviour
     public void ShowSuccess()
     {
         successUI.SetActive(true);
+
+        if (level3SuccessDialogue != null)
+        {
+            level3SuccessDialogue.PlaySuccessDialogue();
+        }
     }
+
 
     public void ShowUnfinished()
     {

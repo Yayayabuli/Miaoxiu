@@ -14,12 +14,19 @@ public class DialogueManager : MonoBehaviour
     [Header("逐字显示速度")]
     public float typeSpeed = 0.05f;
 
+    [Header("点击触发设置")]
+    [Tooltip("需要点击多少次后，才开始显示第一句")]
+    public int clickToStart = 1;
+
     private string[] lines;
     private AudioClip[] voices;
     private int index = -1;
 
     private bool isTyping = false;
     private bool dialogueActive = false;
+
+    private int clickCount = 0;
+    private bool dialogueStarted = false;
 
     public void StartDialogue(
         string characterName,
@@ -40,8 +47,9 @@ public class DialogueManager : MonoBehaviour
         audioSource.Stop();
         StopAllCoroutines();
 
-        // ✅ 关键：立刻播放第一句
-        NextLine();
+        // 重置点击状态
+        clickCount = 0;
+        dialogueStarted = false;
     }
 
     void Update()
@@ -50,9 +58,23 @@ public class DialogueManager : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
+            // 🚦还没到开始对话的点击次数
+            if (!dialogueStarted)
+            {
+                clickCount++;
+
+                if (clickCount >= clickToStart)
+                {
+                    dialogueStarted = true;
+                    NextLine(); // 第一次真正开始
+                }
+
+                return;
+            }
+
+            // 正常对话流程
             if (isTyping)
             {
-                // 点击补全文字（语音不中断）
                 StopAllCoroutines();
                 dialogueText.text = lines[index];
                 isTyping = false;
@@ -82,13 +104,9 @@ public class DialogueManager : MonoBehaviour
 
     IEnumerator TypeLine()
     {
-        Debug.Log("voices is null? " + (voices == null));
-        Debug.Log("voices length = " + (voices == null ? -1 : voices.Length));
-
         isTyping = true;
         dialogueText.text = "";
 
-        // ▶ 播放当前句语音
         if (voices != null && index < voices.Length && voices[index] != null)
         {
             audioSource.clip = voices[index];
@@ -113,5 +131,9 @@ public class DialogueManager : MonoBehaviour
 
         audioSource.Stop();
         dialogueText.text = "";
+
+        // 可选：重置
+        clickCount = 0;
+        dialogueStarted = false;
     }
 }
