@@ -1,6 +1,4 @@
 ﻿using UnityEngine;
-using System.Collections;
-using Unity.VisualScripting;
 using System.Linq;
 
 public class UI_Manager : MonoBehaviour
@@ -13,21 +11,32 @@ public class UI_Manager : MonoBehaviour
 
     [Header("引用")]
     public MouseInteraction mouseInteraction;
-    
+
     [Header("第三关成功反馈")]
     public Level3SuccessDialogue level3SuccessDialogue;
 
+    [Header("拼图成功金边")]
+    public GlowBorder[] glowBorders;
+
+    [Header("倒计时")]
+    public TimerManager timerManager;
+
+    void Start()
+    {
+        // 监听倒计时结束
+        if (timerManager != null)
+        {
+            timerManager.OnTimeUp += OnTimeUp;
+        }
+    }
+
     /// <summary>
-    /// 1️⃣ 检查完成情况按钮点击
-    /// 遍历所有可交互图片，检查缩放和位置是否正确
+    /// 1️⃣ 点击“检测完成”
     /// </summary>
     public void OnCheckCompletion()
     {
         bool hasError = false;
-
         var allChecks = MapManager.Instance.GetAllCheckScripts();
-
-        Debug.Log("Check count = " + allChecks.Length);
 
         foreach (var c in allChecks)
         {
@@ -44,7 +53,11 @@ public class UI_Manager : MonoBehaviour
 
         if (!hasError)
         {
-            ShowSuccess();
+            // ✅ 成功：停表 + 播放成功流程
+            if (timerManager != null)
+                timerManager.StopTimer();
+
+            PlaySuccessFlow();
         }
         else if (MapManager.Instance.canDrag)
         {
@@ -57,46 +70,38 @@ public class UI_Manager : MonoBehaviour
     }
 
     /// <summary>
-    /// 2️⃣ 重置当前关卡按钮点击
-    /// 重置拼图位置和缩放
+    /// ⭐ 成功流程：金边 → 成功UI
     /// </summary>
-    public void OnResetLevel()
+    void PlaySuccessFlow()
     {
-        foreach (var piece in mouseInteraction.allPieces)
+        successUI.SetActive(false);
+
+        int finished = 0;
+        int total = glowBorders.Length;
+
+        // 防止没有金边时报错
+        if (total == 0)
         {
-            if (!piece.isInteractable) continue;
-
-            // 重置缩放
-            RectTransform rt = piece.GetComponent<RectTransform>();
-            rt.localScale = Vector3.one * piece.initialScale;
-
-            // 重置位置
-            Vector2 originalPos = MapManager.Instance.GetOriginalPosition(piece);
-            rt.anchoredPosition = originalPos;
+            ShowSuccess();
+            return;
         }
 
-        // 如果 MouseInteraction 内部有状态，也可以重置
-        mouseInteraction.ResetDraggingState();
-
-        // 隐藏所有UI
-        successUI.SetActive(false);
-        unfinishedUI.SetActive(false);
-        partialErrorUI.SetActive(false);
+        foreach (var glow in glowBorders)
+        {
+            glow.PlayGlow(() =>
+            {
+                finished++;
+                if (finished >= total)
+                {
+                    ShowSuccess();
+                }
+            });
+        }
     }
 
     /// <summary>
-    /// 3️⃣ 菜单按钮点击
-    /// 打开菜单UI
+    /// 成功 UI
     /// </summary>
-    public void OnOpenMenu()
-    {
-        if (menuUI != null)
-        {
-            menuUI.SetActive(true);
-        }
-    }
-
-    // --------------- 保留原有函数 ---------------
     public void ShowSuccess()
     {
         successUI.SetActive(true);
@@ -107,30 +112,55 @@ public class UI_Manager : MonoBehaviour
         }
     }
 
-
+    /// <summary>
+    /// 未完成
+    /// </summary>
     public void ShowUnfinished()
     {
         unfinishedUI.SetActive(true);
     }
 
+    /// <summary>
+    /// 部分错误
+    /// </summary>
     public void ShowPartialError()
     {
         partialErrorUI.SetActive(true);
     }
 
-    public void CloseAllPanels()
+    /// <summary>
+    /// ⏰ 倒计时结束回调
+    /// </summary>
+    void OnTimeUp()
     {
-        if (successUI != null)
-            successUI.SetActive(false);
+        Debug.Log("⏰ Time Up!");
 
-        if (unfinishedUI != null)
-            unfinishedUI.SetActive(false);
-
-        if (partialErrorUI != null)
-            partialErrorUI.SetActive(false);
-
-        if (menuUI != null)
-            menuUI.SetActive(false);
+        // 时间到 → 失败
+        if (MapManager.Instance.canDrag)
+            ShowPartialError();
+        else
+            ShowUnfinished();
     }
 
+    /// <summary>
+    /// 关闭所有 UI
+    /// </summary>
+    public void CloseAllPanels()
+    {
+        if (successUI) successUI.SetActive(false);
+        if (unfinishedUI) unfinishedUI.SetActive(false);
+        if (partialErrorUI) partialErrorUI.SetActive(false);
+        if (menuUI) menuUI.SetActive(false);
+    }
+
+    /// <summary>
+    /// 重置关卡（如果你之后要接按钮）
+    /// </summary>
+    public void ResetLevel()
+    {
+        CloseAllPanels();
+
+        if (timerManager != null)
+            timerManager.StartTimer();
+    }
 }

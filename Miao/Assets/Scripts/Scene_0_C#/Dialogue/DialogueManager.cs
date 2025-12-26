@@ -6,23 +6,29 @@ public class DialogueManager : MonoBehaviour
 {
     [Header("UI 引用")]
     public GameObject dialoguePanel;
-    public Text dialogueText;
+
+    // ❌ 不再使用文字
+    // public Text dialogueText;
 
     [Header("语音")]
     public AudioSource audioSource;
 
-    [Header("逐字显示速度")]
+    [Header("逐字显示速度（已无效）")]
     public float typeSpeed = 0.05f;
 
     [Header("点击触发设置")]
     [Tooltip("需要点击多少次后，才开始显示第一句")]
     public int clickToStart = 1;
 
-    private string[] lines;
+    // ❌ 不再使用文字内容
+    // private string[] lines;
     private AudioClip[] voices;
+
     private int index = -1;
 
-    private bool isTyping = false;
+    // ❌ 不再使用打字状态
+    // private bool isTyping = false;
+
     private bool dialogueActive = false;
 
     private int clickCount = 0;
@@ -31,18 +37,21 @@ public class DialogueManager : MonoBehaviour
     public void StartDialogue(
         string characterName,
         Sprite portrait,
-        string[] dialogueLines,
+        string[] dialogueLines,   // ⚠️ 参数保留，但内部不使用
         AudioClip[] voiceClips
     )
     {
         dialogueActive = true;
         dialoguePanel.SetActive(true);
 
-        lines = dialogueLines;
+        // ❌ 不再保存文字
+        // lines = dialogueLines;
         voices = voiceClips;
 
         index = -1;
-        dialogueText.text = "";
+
+        // ❌ 不再清空文字
+        // dialogueText.text = "";
 
         audioSource.Stop();
         StopAllCoroutines();
@@ -58,7 +67,7 @@ public class DialogueManager : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
-            // 🚦还没到开始对话的点击次数
+            // 🚦还没到开始播放语音的点击次数
             if (!dialogueStarted)
             {
                 clickCount++;
@@ -72,17 +81,8 @@ public class DialogueManager : MonoBehaviour
                 return;
             }
 
-            // 正常对话流程
-            if (isTyping)
-            {
-                StopAllCoroutines();
-                dialogueText.text = lines[index];
-                isTyping = false;
-            }
-            else
-            {
-                NextLine();
-            }
+            // 🎧 现在只有“播放下一句语音”
+            NextLine();
         }
     }
 
@@ -91,10 +91,9 @@ public class DialogueManager : MonoBehaviour
         index++;
         Debug.Log("NextLine index = " + index);
 
-        if (index < lines.Length)
+        if (voices != null && index < voices.Length)
         {
-            StopAllCoroutines();
-            StartCoroutine(TypeLine());
+            PlayVoice();
         }
         else
         {
@@ -102,26 +101,15 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    IEnumerator TypeLine()
+    void PlayVoice()
     {
-        isTyping = true;
-        dialogueText.text = "";
+        audioSource.Stop();
 
-        if (voices != null && index < voices.Length && voices[index] != null)
+        if (voices[index] != null)
         {
             audioSource.clip = voices[index];
             audioSource.Play();
         }
-
-        string currentLine = lines[index];
-
-        foreach (char c in currentLine)
-        {
-            dialogueText.text += c;
-            yield return new WaitForSecondsRealtime(typeSpeed);
-        }
-
-        isTyping = false;
     }
 
     void EndDialogue()
@@ -130,9 +118,8 @@ public class DialogueManager : MonoBehaviour
         dialoguePanel.SetActive(false);
 
         audioSource.Stop();
-        dialogueText.text = "";
 
-        // 可选：重置
+        // 重置
         clickCount = 0;
         dialogueStarted = false;
     }
